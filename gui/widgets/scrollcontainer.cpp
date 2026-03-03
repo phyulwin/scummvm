@@ -38,7 +38,7 @@ ScrollContainerWidget::ScrollContainerWidget(GuiObject *boss, const Common::Stri
 }
 
 void ScrollContainerWidget::init() {
-	setFlags(WIDGET_ENABLED);
+	setFlags(WIDGET_ENABLED | WIDGET_TRACK_MOUSE);
 	_type = kScrollContainerWidget;
 	_backgroundType = ThemeEngine::kWidgetBackgroundPlain;
 	_verticalScroll = new ScrollBarWidget(this, _w, 0, 16, _h);
@@ -46,6 +46,8 @@ void ScrollContainerWidget::init() {
 	_scrolledX = 0;
 	_scrolledY = 0;
 	_limitH = 140;
+	_dragging = false;
+	_lastDragY = 0;
 	recalc();
 }
 
@@ -82,6 +84,52 @@ void ScrollContainerWidget::recalc() {
 	_verticalScroll->setSize(_scrollbarWidth, _limitH-1);
 }
 
+void ScrollContainerWidget::handleMouseDown(int x, int y, int button, int clickCount) {
+	if (button != 1)
+		return;
+
+	//ignore clicks on scrollbar
+	if (_verticalScroll->isVisible() && x >= _w)
+		return;
+
+	_dragging = true;
+	_lastDragY = y;
+}
+
+void ScrollContainerWidget::handleMouseMoved(int x, int y, int button) {
+	if (!_dragging)
+		return;
+
+	int delta = y - _lastDragY;
+	_lastDragY = y;
+
+	_scrolledY -= delta;
+
+	clampScroll();
+
+	reflowLayout();
+	g_gui.scheduleTopDialogRedraw();
+}
+
+void ScrollContainerWidget::handleMouseUp(int x, int y, int button, int clickCount) {
+	if (button != 1)
+		return;
+
+	_dragging = false;
+}
+
+void ScrollContainerWidget::clampScroll() {
+	int maxScroll = _verticalScroll->_numEntries - _limitH;
+	if (maxScroll < 0)
+		maxScroll = 0;
+
+	if (_scrolledY < 0)
+		_scrolledY = 0;
+	if (_scrolledY > maxScroll)
+		_scrolledY = maxScroll;
+
+	_verticalScroll->_currentPos = _scrolledY;
+}
 
 ScrollContainerWidget::~ScrollContainerWidget() {}
 
